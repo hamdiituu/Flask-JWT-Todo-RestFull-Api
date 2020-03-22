@@ -9,10 +9,10 @@ from functools import wraps
 import pymysql.cursors
 
 
-db = pymysql.connect(       host='remotemysql.com',
-                             user='w1oDULvgJe',
-                             password='dDMif4qtml',
-                             db='w1oDULvgJe',
+db = pymysql.connect(       host='host',
+                             user='user',
+                             password='pass',
+                             db='db',
                              charset='utf8mb4',
                              cursorclass=pymysql.cursors.DictCursor)
 
