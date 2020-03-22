@@ -6,29 +6,19 @@ from flask import abort
 import jwt
 import datetime
 from functools import wraps
-
-"""
-token al.
-alınan token decode edilecek.
-ama içinde şifre olmayacak.
-"""
+import pymysql.cursors
 
 
+db = pymysql.connect(       host='remotemysql.com',
+                             user='w1oDULvgJe',
+                             password='dDMif4qtml',
+                             db='w1oDULvgJe',
+                             charset='utf8mb4',
+                             cursorclass=pymysql.cursors.DictCursor)
+
+conn = db.cursor()
 
 app = Flask(__name__)
-
-users =[
-    {
-        'userName':'admin',
-        'userPsw' :'admin',
-        'userId' :1
-    },
-     {
-        'userName':'test',
-        'userPsw' :'test',
-        'userId' :2
-    }     
-]
 
 
 tasks = [
@@ -78,7 +68,7 @@ def auth(f):
         if not token:
             return jsonify({'message': 'Token required!'}), 403
         try:
-            data = jwt.decode(token, app.config['SECRET_KEY'])
+            data = jwt.decode(token, app.config['SECRET_KEY'],  algorithms=['HS256'])
         except:
             return jsonify({'message': 'Token invalid!'}), 403
 
@@ -88,52 +78,96 @@ def auth(f):
 
 @app.route('/todo/api/login',methods=['POST'])
 def get_login():
+    
     username = request.json['username']
     password = request.json['password']
     token = ''
-    if username =='admin' and password =='admin':
-        token = jwt.encode({
-            'user': username,
-            #'password': password,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
-        }, app.config['SECRET_KEY'])
-    else:
-        token = 'Invalid username or password'
+    query ="""  
+                select COUNT(*) as count,Password as password,UserId as userid 
+                from tblUser where NickName =%s 
+                group by Password,UserId"""
 
-    return jsonify({'token': token})
+    conn.execute(query,(username))
+    res = conn.fetchone()
+    if isinstance(res, type(None)):
+        token = 'Invalid username or password'
+    elif res["count"] ==1:
+
+        if password == str(res["password"]):
+           
+            token = jwt.encode({
+                'user': username,
+                'userid' :res["userid"],
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
+                }, app.config['SECRET_KEY'], algorithm='HS256')
+           
+     
+        else:
+            token = 'Invalid username or password'
+    return jsonify({'token': str(token)})
 
 
 @app.route('/todo/api/tasks', methods=['GET'])
 @auth
 def get_tasks():
-    return jsonify({'tasks': tasks})
+    token = request.headers['token']
+   
+    token = jwt.decode(token, app.config['SECRET_KEY'])
+    
+    userid = token["userid"]
+    
+    query ="SELECT * FROM tblTask WHERE UserId =%s ORDER BY id ASC"
+    
+    conn.execute(query,(userid))
+    
+    res = conn.fetchall()
+
+    return jsonify({'tasks': res})
 
 
 @app.route('/todo/api/token', methods=['GET'])
 @auth
 def get_token():
     token = request.headers['token']
-    #token = jwt.decode(token, app.config['SECRET_KEY'])
-    return jsonify({'token': 'token'})
+    token = jwt.decode(token, app.config['SECRET_KEY'])
+    print(token["user"])
+    return jsonify({'task ':token["user"]})
 
 
 
 @app.route('/todo/api/tasks/<int:task_id>', methods=['GET'])
 @auth
 def get_task(task_id):
-    task = [task for task in tasks if task['id'] == task_id]
-    if len(task) == 0:
-        abort(404)
-    return jsonify({'task': task[0]})
+    
+    token = request.headers['token']
+   
+    token = jwt.decode(token, app.config['SECRET_KEY'])
+    
+    userid = token["userid"]
+    
+    query ="SELECT * FROM tblTask WHERE UserId =%s AND id =%s"
+
+    conn.execute(query,(userid,task_id))
+    
+    res = conn.fetchone()
+
+    return jsonify({'tasks': res})
 
 
 @app.route('/todo/api/tasks', methods=['POST'])
 @auth
 def create_task():
+
+    token = request.headers['token']
+   
+    token = jwt.decode(token, app.config['SECRET_KEY'])
+    
+    userid = token["userid"]
+
     if not request.json or not 'title' in request.json:
         abort(400)
     task = {
-        'id': tasks[-1]['id'] + 1,
+        'id': tasks[-1]['id'] + 1, 
         'title': request.json['title'],
         'description': request.json.get('description', ""),
         'done': False
@@ -163,11 +197,21 @@ def update_task(task_id):
 @app.route('/todo/api/tasks/<int:task_id>', methods=['DELETE'])
 @auth
 def delete_task(task_id):
-    task = [task for task in tasks if task['id'] == task_id]
-    if len(task) == 0:
-        abort(404)
-    tasks.remove(task[0])
-    return jsonify({'result': True})
+    token = request.headers['token']
+   
+    token = jwt.decode(token, app.config['SECRET_KEY'])
+    
+    userid = token["userid"]
+    
+    query ="DELETE FROM tblTask WHERE UserId =%s AND id =%s"
+
+    conn.execute(query,(userid,task_id))
+    
+    db.commit()
+
+
+    return jsonify({'tasks': True})
+  
 
 
 @app.errorhandler(404)
