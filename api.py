@@ -6,29 +6,18 @@ from flask import abort
 import jwt
 import datetime
 from functools import wraps
+import pymysql.cursors
 
-"""
-token al.
-alınan token decode edilecek.
-ama içinde şifre olmayacak.
-"""
+db = pymysql.connect(       host='remotemysql.com',
+                             user='w1oDULvgJe',
+                             password='dDMif4qtml',
+                             db='w1oDULvgJe',
+                             charset='utf8mb4',
+                             cursorclass=pymysql.cursors.DictCursor)
 
-
+conn = db.cursor()
 
 app = Flask(__name__)
-
-users =[
-    {
-        'userName':'admin',
-        'userPsw' :'admin',
-        'userId' :1
-    },
-     {
-        'userName':'test',
-        'userPsw' :'test',
-        'userId' :2
-    }     
-]
 
 
 tasks = [
@@ -88,19 +77,32 @@ def auth(f):
 
 @app.route('/todo/api/login',methods=['POST'])
 def get_login():
+    
     username = request.json['username']
     password = request.json['password']
     token = ''
-    if username =='admin' and password =='admin':
-        token = jwt.encode({
-            'user': username,
-            #'password': password,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
-        }, app.config['SECRET_KEY'])
-    else:
-        token = 'Invalid username or password'
+    query ="""  
+                select COUNT(*) as count,Password as password 
+                from tblUser where NickName =%s 
+                group by Password"""
 
-    return jsonify({'token': token})
+    conn.execute(query,(username))
+    res = conn.fetchone()
+    if isinstance(res, type(None)):
+        token = 'Invalid username or password'
+    elif res["count"] ==1:
+
+        if password == str(res["password"]):
+           
+            token = jwt.encode({
+                'user': username,
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
+                }, app.config['SECRET_KEY'])
+            print(token)
+     
+        else:
+            token = 'Invalid username or password 002'
+    return jsonify({'token': str(token)})
 
 
 @app.route('/todo/api/tasks', methods=['GET'])
