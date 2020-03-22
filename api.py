@@ -146,7 +146,7 @@ def get_task(task_id):
     userid = token["userid"]
     
     query ="SELECT * FROM tblTask WHERE UserId =%s AND id =%s"
-    
+
     conn.execute(query,(userid,task_id))
     
     res = conn.fetchone()
@@ -157,6 +157,13 @@ def get_task(task_id):
 @app.route('/todo/api/tasks', methods=['POST'])
 @auth
 def create_task():
+
+    token = request.headers['token']
+   
+    token = jwt.decode(token, app.config['SECRET_KEY'])
+    
+    userid = token["userid"]
+
     if not request.json or not 'title' in request.json:
         abort(400)
     task = {
@@ -190,11 +197,21 @@ def update_task(task_id):
 @app.route('/todo/api/tasks/<int:task_id>', methods=['DELETE'])
 @auth
 def delete_task(task_id):
-    task = [task for task in tasks if task['id'] == task_id]
-    if len(task) == 0:
-        abort(404)
-    tasks.remove(task[0])
-    return jsonify({'result': True})
+    token = request.headers['token']
+   
+    token = jwt.decode(token, app.config['SECRET_KEY'])
+    
+    userid = token["userid"]
+    
+    query ="DELETE FROM tblTask WHERE UserId =%s AND id =%s"
+
+    conn.execute(query,(userid,task_id))
+    
+    db.commit()
+
+
+    return jsonify({'tasks': True})
+  
 
 
 @app.errorhandler(404)
