@@ -8,6 +8,7 @@ import datetime
 from functools import wraps
 import pymysql.cursors
 
+
 db = pymysql.connect(       host='remotemysql.com',
                              user='w1oDULvgJe',
                              password='dDMif4qtml',
@@ -67,7 +68,7 @@ def auth(f):
         if not token:
             return jsonify({'message': 'Token required!'}), 403
         try:
-            data = jwt.decode(token, app.config['SECRET_KEY'])
+            data = jwt.decode(token, app.config['SECRET_KEY'],  algorithms=['HS256'])
         except:
             return jsonify({'message': 'Token invalid!'}), 403
 
@@ -82,9 +83,9 @@ def get_login():
     password = request.json['password']
     token = ''
     query ="""  
-                select COUNT(*) as count,Password as password 
+                select COUNT(*) as count,Password as password,UserId as userid 
                 from tblUser where NickName =%s 
-                group by Password"""
+                group by Password,UserId"""
 
     conn.execute(query,(username))
     res = conn.fetchone()
@@ -96,37 +97,61 @@ def get_login():
            
             token = jwt.encode({
                 'user': username,
+                'userid' :res["userid"],
                 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
-                }, app.config['SECRET_KEY'])
-            print(token)
+                }, app.config['SECRET_KEY'], algorithm='HS256')
+           
      
         else:
-            token = 'Invalid username or password 002'
+            token = 'Invalid username or password'
     return jsonify({'token': str(token)})
 
 
 @app.route('/todo/api/tasks', methods=['GET'])
 @auth
 def get_tasks():
-    return jsonify({'tasks': tasks})
+    token = request.headers['token']
+   
+    token = jwt.decode(token, app.config['SECRET_KEY'])
+    
+    userid = token["userid"]
+    
+    query ="SELECT * FROM tblTask WHERE UserId =%s ORDER BY id ASC"
+    
+    conn.execute(query,(userid))
+    
+    res = conn.fetchall()
+
+    return jsonify({'tasks': res})
 
 
 @app.route('/todo/api/token', methods=['GET'])
 @auth
 def get_token():
     token = request.headers['token']
-    #token = jwt.decode(token, app.config['SECRET_KEY'])
-    return jsonify({'token': 'token'})
+    token = jwt.decode(token, app.config['SECRET_KEY'])
+    print(token["user"])
+    return jsonify({'task ':token["user"]})
 
 
 
 @app.route('/todo/api/tasks/<int:task_id>', methods=['GET'])
 @auth
 def get_task(task_id):
-    task = [task for task in tasks if task['id'] == task_id]
-    if len(task) == 0:
-        abort(404)
-    return jsonify({'task': task[0]})
+    
+    token = request.headers['token']
+   
+    token = jwt.decode(token, app.config['SECRET_KEY'])
+    
+    userid = token["userid"]
+    
+    query ="SELECT * FROM tblTask WHERE UserId =%s AND id =%s"
+    
+    conn.execute(query,(userid,task_id))
+    
+    res = conn.fetchone()
+
+    return jsonify({'tasks': res})
 
 
 @app.route('/todo/api/tasks', methods=['POST'])
