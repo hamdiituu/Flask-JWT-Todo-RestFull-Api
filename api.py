@@ -9,6 +9,7 @@ from functools import wraps
 import pymysql.cursors
 from flask_swagger_ui import get_swaggerui_blueprint
 
+
 db = pymysql.connect(       host='remotemysql.com',
                              user='w1oDULvgJe',
                              password='dDMif4qtml',
