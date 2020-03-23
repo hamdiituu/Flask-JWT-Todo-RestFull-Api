@@ -7,7 +7,7 @@ import jwt
 import datetime
 from functools import wraps
 import pymysql.cursors
-
+from flask_swagger_ui import get_swaggerui_blueprint
 
 db = pymysql.connect(       host='remotemysql.com',
                              user='w1oDULvgJe',
@@ -20,39 +20,17 @@ conn = db.cursor()
 
 app = Flask(__name__)
 
+SWAGGER_URL = '/swagger'
+API_URL = '/static/swagger.json'
+SWAGGERUI_BLUEPRINT = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={
+        'app_name': "Flask-Todo-API-JWT"
+    }
+)
+app.register_blueprint(SWAGGERUI_BLUEPRINT, url_prefix=SWAGGER_URL)
 
-tasks = [
-    {
-        'id': 1,
-        'title': 'FLASK API',
-        'description': 'Flask ile Api Olustur.', 
-        'done': True
-    },
-    {
-        'id': 2,
-        'title': 'REACT-FLASK',
-        'description': 'Flask Api ile React Uygulaması Olustur.', 
-        'done': False
-    }
-    ,{
-        'id': 3,
-        'title': 'FLASK API MySQL',
-        'description': 'Flask Api ile MySQL Bağlantısını olustur.', 
-        'done': False
-    }
-    ,{
-        'id': 4,
-        'title': 'FLASK API JWT',
-        'description': 'Flask Api JWT Ekle.', 
-        'done': True
-    }
-    ,{
-        'id': 5,
-        'title': 'REACT-NATİVE FLASK',
-        'description': 'Flask Api İle React-Native Uygulaması Geliştir.', 
-        'done': False
-    }
-]
 
 app.config['SECRET_KEY'] ='Bu bir pyFlask-JWT Api Projesidir.'
 
@@ -161,38 +139,60 @@ def create_task():
     token = request.headers['token']
    
     token = jwt.decode(token, app.config['SECRET_KEY'])
-    
+     
     userid = token["userid"]
 
     if not request.json or not 'title' in request.json:
         abort(400)
-    task = {
-        'id': tasks[-1]['id'] + 1,
-        'title': request.json['title'],
-        'description': request.json.get('description', ""),
-        'done': False
-    }
-    tasks.append(task)
-    return jsonify({'task': task}), 201
+    title = request.json['title']
+    description =request.json['description']
+    done = request.json['done']
+    enddate = request.json['enddate']
+    
+    query ="""
+    insert into tblTask
+    (Description, Done, EndDate, Title, UserId)
+    values
+    (%s, %s, %s, %s, %s)
+    """
+    conn.execute(query,(description,done,enddate,title,userid))
+    
+    db.commit()
+
+    return  jsonify({"task" :True}), 201
 
 @app.route('/todo/api/tasks/<int:task_id>', methods=['PUT'])
 @auth
 def update_task(task_id):
-    task = [task for task in tasks if task['id'] == task_id]
-    if len(task) == 0:
-        abort(404)
-    if not request.json:
-        abort(400)
-    if 'title' in request.json and type(request.json['title']) != unicode:
-        abort(400)
-    if 'description' in request.json and type(request.json['description']) is not unicode:
-        abort(400)
-    if 'done' in request.json and type(request.json['done']) is not bool:
-        abort(400)
-    task[0]['title'] = request.json.get('title', task[0]['title'])
-    task[0]['description'] = request.json.get('description', task[0]['description'])
-    task[0]['done'] = request.json.get('done', task[0]['done'])
-    return jsonify({'task': task[0]})
+    token = request.headers['token']
+
+    token = jwt.decode(token, app.config['SECRET_KEY'])
+
+    userid = token["userid"]
+
+    title = request.json['title']
+
+    description =request.json['description']
+
+    done = request.json['done']
+
+    enddate = request.json['enddate']
+    
+    query ="""
+    update tblTask 
+    set CreationDate = CreationDate
+  , Description = %s
+  , Done = %s
+  , EndDate = %s
+  , Title = %s
+  , UserId = %s 
+    where id = %s
+    """
+    conn.execute(query,(description,done,enddate,title,userid,task_id))
+    
+    db.commit()
+
+    return jsonify({'task': True }) ,200
 
 @app.route('/todo/api/tasks/<int:task_id>', methods=['DELETE'])
 @auth
