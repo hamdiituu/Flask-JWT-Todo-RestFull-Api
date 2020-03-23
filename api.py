@@ -10,10 +10,10 @@ import pymysql.cursors
 from flask_swagger_ui import get_swaggerui_blueprint
 
 
-db = pymysql.connect(       host='remotemysql.com',
-                             user='w1oDULvgJe',
-                             password='dDMif4qtml',
-                             db='w1oDULvgJe',
+db = pymysql.connect(       host='host',
+                             user='user',
+                             password='pass',
+                             db='db',
                              charset='utf8mb4',
                              cursorclass=pymysql.cursors.DictCursor)
 
@@ -27,7 +27,7 @@ SWAGGERUI_BLUEPRINT = get_swaggerui_blueprint(
     SWAGGER_URL,
     API_URL,
     config={
-        'app_name': "Flask-Todo-API-JWT"
+        'app_name': "Flask-Todo-API -JWT"
     }
 )
 app.register_blueprint(SWAGGERUI_BLUEPRINT, url_prefix=SWAGGER_URL)
@@ -145,6 +145,7 @@ def create_task():
 
     if not request.json or not 'title' in request.json:
         abort(400)
+<<<<<<< HEAD
     title = request.json['title']
     description =request.json['description']
     done = request.json['done']
@@ -161,6 +162,16 @@ def create_task():
     db.commit()
 
     return  jsonify({"task" :True}), 201
+=======
+    task = {
+        'id': tasks[-1]['id'] + 1, 
+        'title': request.json['title'],
+        'description': request.json.get('description', ""),
+        'done': False
+    }
+    tasks.append(task)
+    return jsonify({'task': task}), 201
+>>>>>>> adc37e39aac0d323cd054e031e28957278d332ae
 
 @app.route('/todo/api/tasks/<int:task_id>', methods=['PUT'])
 @auth
