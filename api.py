@@ -145,7 +145,6 @@ def create_task():
 
     if not request.json or not 'title' in request.json:
         abort(400)
-<<<<<<< HEAD
     title = request.json['title']
     description =request.json['description']
     done = request.json['done']
@@ -162,7 +161,6 @@ def create_task():
     db.commit()
 
     return  jsonify({"task" :True}), 201
-=======
     task = {
         'id': tasks[-1]['id'] + 1, 
         'title': request.json['title'],
@@ -171,7 +169,7 @@ def create_task():
     }
     tasks.append(task)
     return jsonify({'task': task}), 201
->>>>>>> adc37e39aac0d323cd054e031e28957278d332ae
+
 
 @app.route('/todo/api/tasks/<int:task_id>', methods=['PUT'])
 @auth
@@ -231,4 +229,4 @@ def not_found(error):
     return make_response(jsonify({'error': 'Not found'}), 404)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True) #deploy -> False
